@@ -13,6 +13,9 @@ if os.path.isfile('config.ini'):
 else:
     print("Не найден конфиг!")
 
+#Класс для подготовки задачи для пула модуля workerpool. Необходим для реализации последовательного
+#выполнения всех архиваций или же многопоточной архивации\копирования файлов и каталогов
+# переменные path (что копируем), bpath (куда копируем), archiever (как копируем\сжимаем)
 
 class FolderBackup(workerpool.Job):
 
@@ -23,6 +26,7 @@ class FolderBackup(workerpool.Job):
         self.archiever = archiever
 
     def run(self):
+        # Проверяем что за команда нам пришла, и действуем соответствующим образом.
         if "7za" or "7z.exe" in self.archiever:
             self.archiever = self.archiever + " " + self.bpath + " " + self.path
         subprocess.call(self.archiever, shell=True)
