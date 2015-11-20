@@ -31,16 +31,18 @@ class FolderBackup(workerpool.Job):
             self.archiever = self.archiever + " " + self.bpath + " " + self.path
         subprocess.call(self.archiever, shell=True)
 
-
+# Инициируем пул воркеров и очередь заданий.
+pool = workerpool.WorkerPool(size=1)
 
 # Преобразовываем вложенный список значений в словарь.
 backups = dict(config.items('folders'))
 
 date = datetime.date.today() # Дата исполнения с отсечением времени
 print(date)
-localpath = 'test_bak\\' + str(date) + "\\\\"
-os.mkdir(localpath)
-ftppath = '/backup/' + backup_name + '/' + str(date)
+localpath = 'test_bak\\' + str(date) + "\\"
+if not os.path.isdir(localpath):
+    os.mkdir(localpath)
+#ftppath = '/backup/' + backup_name + '/' + str(date)
 pguser = "postgres"
 pgpass = "postgres"
 archcmd = '7z.exe a -mx=9 -mfb=64'
@@ -48,6 +50,13 @@ pgcmd = "-h localhost -U $PG_USR -c $DB"
 
 for key in backups:
     filename = localpath+key+".7z"
-    full_cmd = archcmd + " " + filename + " " + backups[key]
-    print(full_cmd)
-    subprocess.call(full_cmd, shell=True)
+#    full_cmd = archcmd + " " + filename + " " + backups[key]
+    job = FolderBackup(backups[key], filename, archcmd)
+#    print(full_cmd)
+#    subprocess.call(full_cmd, shell=True)
+    pool.put(job)
+
+pool.wait()
+pool.shutdown()
+
+print("Such good, many backup, very archives, so wow!")
