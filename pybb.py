@@ -6,12 +6,13 @@ import subprocess
 from builtins import print
 from configparser import ConfigParser
 import workerpool
+import shutil
 
 
 # Пишем логи, вот так просто.
 def write_log(message):
     with open("backup.log", 'a') as log:
-        log.writelines(message + "\n")
+        log.writelines(str(datetime.date.today()) + ': ' + message + "\n")
         log.close()
 
 # Класс для получения настроек для заданий из конфига. Конфиг должен лежать в той-же директории
@@ -87,7 +88,7 @@ def backup_folders():
             write_log(localpath)
             print('Директория для бекапов: ' + localpath)
         except:
-            print('Не задана директория для хранения резервных копий!')
+            print('Не задана или не существует директория для хранения резервных копий!')
             exit()
 
         try:
@@ -123,15 +124,32 @@ def backup_folders():
     else:
         print("Не назначены задания для директорий!")
 
+# Функция очистки от старых копий
+def cleanup():
+    params = Parameters()
+    days = int(params.get_params()['days'])
+    del_path = params.get_params()['path'] + str((datetime.date.today() - datetime.timedelta(days=days)))
+    try:
+        if os.path.isdir(del_path):
+            shutil.rmtree(del_path)
+            write_log("Бекап удален: " + del_path)
+        else:
+            print("Нечего удалять.")
+    except:
+        write_log("При очистке возникла ошибка, проверьте вручную.")
+        print("Возникла какая-то ошибка при удалении")
 
 # pgcmd = "-h localhost -U $PG_USR -c $DB"
 
 # Инициируем пул воркеров и очередь заданий.
 pool = workerpool.WorkerPool(size=1)
+# Инициальзируем объект конфига
+
 backup_folders()
 pool.shutdown()
 pool.wait()
 
+cleanup()
 write_log("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
 input("Press enter to Exit")
