@@ -1,12 +1,13 @@
 #! python3
 
-from builtins import print
 import datetime
-import subprocess
-from configparser import ConfigParser
 import os
+import subprocess
+from builtins import print
+from configparser import ConfigParser
+
 import workerpool
-import requests
+
 
 # Пишем логи, вот так просто.
 def write_log(message):
@@ -14,76 +15,122 @@ def write_log(message):
         log.writelines(message + "\n")
         log.close()
 
+# Класс для получения настроек для заданий из конфига. Конфиг должен лежать в той-же директории
+# что и сам скрипт.
+class Parameters(object):
 
-def get_conf():
-
-    # Проверяем есть ли конфиг и если есть, парсим его
-    config = ConfigParser()
-    if os.path.isfile('config.ini'):
-        config.read('config.ini')
-    else:
-        print("Не найден конфиг!")
-
-    # Инициируем базовые установки и берем данные из конфига.
-    backups = dict(config.items('folders'))
-    date = datetime.date.today() # Дата исполнения с отсечением времени
-    try:
-        localpath = config.get('conf', 'path') + str(date) + "\\"
-        if not os.path.isdir(localpath):
-            os.mkdir(localpath)
-        write_log(localpath)
-        print('Директория для бекапов: ' + localpath)
-    except:
-        print('Не задана директория для хранения резервных копий')
-        exit()
-
-    if config.get('conf', 'arch') == '7zip':
-        if os.name == 'nt':
-            archcmd = '7z.exe a -mx=9 -mfb=64'
+    def __init__(self):
+        self.config = ConfigParser()
+        if os.path.isfile('config.ini'):
+            self.config.read('config.ini')
         else:
-            archcmd = '7za a -mx=9 -mfb=64'
-    elif config.get('conf', 'arch') == 'bzip2':
-        archcmd = 'tar -cvjSf'
-    else:
-        archcmd = 'tar -zcvf'
-    print(archcmd)
+            print("Не найден конфиг!")
+            exit()
 
-    pgcmd = "-h localhost -U $PG_USR -c $DB"
+    # Метод проверяет задана ли секция в конфиге отвечающая за пути к директориям для бекапа
+    # если задана, возвращает словарь вида {имя_бекапа: путь}
+    def get_folders(self):
 
-    return localpath, archcmd, backups
+        if 'folders' in self.config.sections():
+            return dict(self.config.items('folders'))
+        else:
+            return False
+
+    # Метод проверяет задана ли секция отвечающая за параметры архивирования и хранения
+    # резервных копий, возвращает словарь вида {название_параметра: значение}
+    def get_params(self):
+
+        if 'conf' in self.config.sections():
+            return dict(self.config.items('conf'))
+        else:
+            return False
+
+    # Метод заглушка для MySQL
+    def get_mysql(self):
+        pass
+
+    # Метод заглушка для PostgreSQL
+    def get_psql(self):
+        pass
+
+    # Метод заглушка для виртуальных машин VirtualBox
+    def get_vms(self):
+        pass
+
 
 # Класс для подготовки задачи для пула модуля workerpool. Необходим для реализации последовательного
 # выполнения всех архиваций или же многопоточной архивации\копирования файлов и каталогов
-# переменные path (что копируем), bpath (куда копируем), archiver (как копируем\сжимаем)
+# На вход принимает строку с командой и выполняет ее через subprocess.
 
 class FolderBackup(workerpool.Job):
-
-    def __init__(self, path, bpath, archiver):
+    def __init__(self, archivate, job_name):
         workerpool.Job.__init__(self)
-        self.path = path
-        self.bpath = bpath
-        self.archiver = archiver
+        self.archivate = archivate
+        self.name = job_name
 
     def run(self):
-        # Проверяем что за команда нам пришла, и действуем соответствующим образом.
-        if "7za" or "7z.exe" in self.archiver:
-            self.archiver = self.archiver + " " + self.bpath + " " + self.path
-        else:
-            self.archiver = self.archiver + " " + self.path + " " + self.bpath
-        subprocess.call(self.archiver, shell=True)
+        try:
+            subprocess.check_call(self.archivate, shell=True)
+            write_log('Задание успешно выполнено: ' + self.name)
+        except:
+            write_log('Возникла ошибка при выполнинии задания: ' + str(subprocess.CalledProcessError))
 
+def backup_folders():
 
+    date = datetime.date.today()  # Дата исполнения с отсечением времени
+    params = Parameters()
+    settings = params.get_params()
+    folders = params.get_folders()
+
+    if settings:
+        try:
+            localpath = settings['path'] + str(date) + "\\"
+            if not os.path.isdir(localpath):
+                os.mkdir(localpath)
+            write_log(localpath)
+            print('Директория для бекапов: ' + localpath)
+        except:
+            print('Не задана директория для хранения резервных копий!')
+            exit()
+
+        try:
+            if settings['arch'] == '7zip':
+                if os.name == 'nt':
+                    archcmd = '7z.exe a -mx=9 -mfb=64'
+                    print('Архиватор: ' + settings['arch'])
+                else:
+                    archcmd = '7za a -mx=9 -mfb=64'
+                    print('Архиватор: ' + settings['arch'])
+            elif settings['arch'] == 'bzip2':
+                archcmd = 'tar -cvjSf'
+                print('Архиватор: ' + settings['arch'])
+            else:
+                archcmd = 'tar -zcvf'
+                print('Архиватор: ' + settings['arch'])
+        except:
+            print('Отсутсвует или неверно задана команда архивирования!')
+            exit()
+
+    else:
+        print('В конфиге отсутствуют настройки архивации и ханения! Проверь конфиг!')
+        exit()
+
+    if folders:
+        for (name, path) in folders.items():
+            if 'tar' in archcmd:
+                fullcmd = archcmd + " " + path + " " + localpath + name
+                pool.put(FolderBackup(fullcmd, name))
+            else:
+                fullcmd = archcmd + " " + localpath + name + " " + path
+                pool.put(FolderBackup(fullcmd, name))
+    else:
+        print("Не назначены задания для директорий!")
+
+# pgcmd = "-h localhost -U $PG_USR -c $DB"
 
 # Инициируем пул воркеров и очередь заданий.
 pool = workerpool.WorkerPool(size=1)
-
-
-# for key in backups:
-#    filename = localpath+key+".7z"
-#   job = FolderBackup(backups[key], filename, archcmd)
-#    pool.put(job)
-
-backup_path, command, backup_targets = get_conf()
+backup_folders()
 pool.wait()
 pool.shutdown()
 
