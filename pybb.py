@@ -42,7 +42,7 @@ class Parameters(object):
             self.config.read('config.ini')
         else:
             print("Не найден конфиг!")
-            exit()
+            exit(1)
 
     # Метод проверяет задана ли секция в конфиге отвечающая за пути к директориям для бекапа
     # если задана, возвращает словарь вида {имя_бекапа: путь}
@@ -124,7 +124,7 @@ def backup_folders():
             print('Директория для бекапов: ' + localpath)
         except:
             print('Не задана или не существует директория для хранения резервных копий!')
-            exit()
+            exit(1)
 
         try:
             if settings['arch'] == '7zip':
@@ -146,11 +146,11 @@ def backup_folders():
                 print('Архиватор: ' + settings['arch'])
         except:
             print('Отсутсвует или неверно задана команда архивирования!')
-            exit()
+            exit(1)
 
     else:
         print('В конфиге отсутствуют настройки архивации и ханения! Проверь конфиг!')
-        exit()
+        exit(1)
 
     if folders:
         for (name, path) in folders.items():
@@ -169,7 +169,7 @@ def backup_folders():
         print("Не назначены задания для директорий!")
 
 
-# Функция очистки от старых копий
+# Функция очистки от старых резервных копий
 def cleanup():
     try:
         days = int(params.get_params()['days'])
@@ -183,11 +183,12 @@ def cleanup():
     except KeyError:
         write_log("При очистке возникла ошибка: не задан параметр days в секции [conf]")
         print("Возникла какая-то ошибка при удалении: не задан параметр days в секции [conf]")
+        send_push('При очистке возникла ошибка', '1')
         exit(1)
     except:
         write_log("При очистке возникла какая-то ошибка, проверьте вручную")
         send_push('При очистке возникла ошибка', '1')
-        
+
 
 # pgcmd = "-h localhost -U $PG_USR -c $DB"
 
