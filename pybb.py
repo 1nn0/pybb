@@ -76,7 +76,7 @@ class FolderBackup(workerpool.Job):
 # Функция обработки заданий для директорий. Формирует команду для архивации и ставит задание в очередь.
 def backup_folders():
     date = datetime.date.today()  # Дата исполнения с отсечением времени
-    params = Parameters()
+   # params = Parameters()
     settings = params.get_params()
     folders = params.get_folders()
 
@@ -126,7 +126,7 @@ def backup_folders():
 
 # Функция очистки от старых копий
 def cleanup():
-    params = Parameters()
+    # params = Parameters()
     days = int(params.get_params()['days'])
     del_path = params.get_params()['path'] + str((datetime.date.today() - datetime.timedelta(days=days)))
     try:
@@ -141,15 +141,17 @@ def cleanup():
 
 # pgcmd = "-h localhost -U $PG_USR -c $DB"
 
-# Инициируем пул воркеров и очередь заданий.
+# Иницализируем пул воркеров и очередь заданий.
 pool = workerpool.WorkerPool(size=1)
-# Инициальзируем объект конфига
-
+# Инициализируем объект конфига
+params = Parameters()
+# Выполняем задания
 backup_folders()
 pool.shutdown()
 pool.wait()
-
+# Чистим архив
 cleanup()
+# Пишем всякую чухню в лог и в консоль.
 write_log("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
 input("Press enter to Exit")
