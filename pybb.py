@@ -15,6 +15,7 @@ def write_log(message):
         log.writelines(str(datetime.date.today()) + ': ' + message + "\n")
         log.close()
 
+
 # Класс для получения настроек для заданий из конфига. Конфиг должен лежать в той-же директории
 # что и сам скрипт.
 class Parameters(object):
@@ -56,6 +57,7 @@ class Parameters(object):
     def get_vms(self):
         pass
 
+
 # Класс для подготовки задачи для пула модуля workerpool. Необходим для реализации последовательного
 # выполнения всех архиваций или же многопоточной архивации\копирования файлов и каталогов
 # На вход принимает строку с командой и выполняет ее через subprocess.
@@ -73,10 +75,11 @@ class FolderBackup(workerpool.Job):
         except:
             write_log('Возникла ошибка при выполнинии задания: ' + str(subprocess.CalledProcessError))
 
+
 # Функция обработки заданий для директорий. Формирует команду для архивации и ставит задание в очередь.
 def backup_folders():
     date = datetime.date.today()  # Дата исполнения с отсечением времени
-   # params = Parameters()
+    # params = Parameters()
     settings = params.get_params()
     folders = params.get_folders()
 
@@ -124,6 +127,7 @@ def backup_folders():
     else:
         print("Не назначены задания для директорий!")
 
+
 # Функция очистки от старых копий
 def cleanup():
     # params = Parameters()
@@ -138,6 +142,7 @@ def cleanup():
     except:
         write_log("При очистке возникла ошибка, проверьте вручную.")
         print("Возникла какая-то ошибка при удалении")
+
 
 # pgcmd = "-h localhost -U $PG_USR -c $DB"
 
