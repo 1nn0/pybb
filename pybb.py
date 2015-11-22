@@ -9,11 +9,13 @@ import workerpool
 import shutil
 import requests
 
+
 # Пишем логи, вот так просто.
 def write_log(message):
     with open("backup.log", 'a') as log:
         log.writelines(str(datetime.date.today()) + ': ' + message + "\n")
         log.close()
+
 
 def send_push(message, priority):
     settings = params.get_push()
@@ -29,9 +31,6 @@ def send_push(message, priority):
             write_log("Push-сообщение отправлено")
         else:
             print("Что-то пошло не так: " + str(req.json()))
-
-
-
 
 
 # Класс для получения настроек для заданий из конфига. Конфиг должен лежать в той-же директории
