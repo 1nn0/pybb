@@ -21,10 +21,13 @@ def send_push(message, priority):
     settings = params.get_push()
     url = 'https://api.pushover.net/1/messages.json'
     if settings:
-        print(settings)
         notification = settings
-        notification['prioroty'] = str(priority)
+        if int(priority) == 2:
+            notification['priority'] = int(priority)
+            notification['retry'] = 30
+            notification['expire'] = 360
         notification['message'] = message
+        print(notification)
         req = requests.post(url, data=notification)
         if req.status_code == requests.codes.ok:
             print('Push-сообщение отправлено')
@@ -203,7 +206,7 @@ pool.wait()
 # Чистим архив
 cleanup()
 # Пишем всякую чухню в лог и в консоль.
-send_push("Все готово, босс!", '-1')
+send_push("Все готово, босс!", -1)
 write_log("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
 input("Press enter to Exit")
