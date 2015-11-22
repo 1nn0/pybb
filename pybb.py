@@ -131,8 +131,8 @@ def backup_folders():
 # Инициируем пул воркеров и очередь заданий.
 pool = workerpool.WorkerPool(size=1)
 backup_folders()
-pool.wait()
 pool.shutdown()
+pool.wait()
 
 write_log("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
