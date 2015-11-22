@@ -94,7 +94,7 @@ class Parameters(object):
 # выполнения всех архиваций или же многопоточной архивации\копирования файлов и каталогов
 # На вход принимает строку с командой и выполняет ее через subprocess.
 
-class FolderBackup(workerpool.Job):
+class DoBackup(workerpool.Job):
     def __init__(self, archivate, job_name):
         workerpool.Job.__init__(self)
         self.archivate = archivate
@@ -154,8 +154,16 @@ def backup_folders():
 
     if folders:
         for (name, path) in folders.items():
-            fullcmd = archcmd + " " + localpath + name + extension + " " + path
-            pool.put(FolderBackup(fullcmd, name))
+            if name.endswith('_r'):
+                if not os.path.isdir(os.path.join(localpath, name)):
+                    os.mkdir(os.path.join(localpath, name))
+                for item in os.scandir(path):
+                    if not item.name.startswith('.') or item.is_file():
+                        fullcmd = archcmd + " " + os.path.join(localpath, name, item.name) + extension + " " + os.path.join(path, item.name)
+                        pool.put(DoBackup(fullcmd, item.name))
+            else:
+                fullcmd = archcmd + " " + localpath + name + extension + " " + path
+                pool.put(DoBackup(fullcmd, name))
     else:
         print("Не назначены задания для директорий!")
 
