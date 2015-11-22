@@ -157,10 +157,10 @@ def backup_folders():
             if name.endswith('_r'):
                 if not os.path.isdir(os.path.join(localpath, name)):
                     os.mkdir(os.path.join(localpath, name))
-                for item in os.scandir(path):
-                    if not item.name.startswith('.') or item.is_file():
-                        fullcmd = archcmd + " " + os.path.join(localpath, name, item.name) + extension + " " + os.path.join(path, item.name)
-                        pool.put(DoBackup(fullcmd, item.name))
+                for item in os.listdir(path):
+                    if not item.startswith('.') or os.path.isfile(os.path.join(path, item)):
+                        fullcmd = archcmd + " " + os.path.join(localpath, name, item) + extension + " " + os.path.join(path, item)
+                        pool.put(DoBackup(fullcmd, item))
             else:
                 fullcmd = archcmd + " " + localpath + name + extension + " " + path
                 pool.put(DoBackup(fullcmd, name))
