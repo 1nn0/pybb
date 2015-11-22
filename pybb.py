@@ -5,7 +5,6 @@ import os
 import subprocess
 from builtins import print
 from configparser import ConfigParser
-
 import workerpool
 
 
@@ -15,10 +14,10 @@ def write_log(message):
         log.writelines(message + "\n")
         log.close()
 
+
 # Класс для получения настроек для заданий из конфига. Конфиг должен лежать в той-же директории
 # что и сам скрипт.
 class Parameters(object):
-
     def __init__(self):
         self.config = ConfigParser()
         if os.path.isfile('config.ini'):
@@ -75,8 +74,8 @@ class FolderBackup(workerpool.Job):
         except:
             write_log('Возникла ошибка при выполнинии задания: ' + str(subprocess.CalledProcessError))
 
-def backup_folders():
 
+def backup_folders():
     date = datetime.date.today()  # Дата исполнения с отсечением времени
     params = Parameters()
     settings = params.get_params()
@@ -96,15 +95,19 @@ def backup_folders():
         try:
             if settings['arch'] == '7zip':
                 if os.name == 'nt':
+                    extension = '.7z'
                     archcmd = '7z.exe a -mx=9 -mfb=64'
                     print('Архиватор: ' + settings['arch'])
                 else:
+                    extension = '.7z'
                     archcmd = '7za a -mx=9 -mfb=64'
                     print('Архиватор: ' + settings['arch'])
             elif settings['arch'] == 'bzip2':
+                extension = '.tar.bz2'
                 archcmd = 'tar -cvjSf'
                 print('Архиватор: ' + settings['arch'])
             else:
+                extension = '.tar.gz'
                 archcmd = 'tar -zcvf'
                 print('Архиватор: ' + settings['arch'])
         except:
@@ -117,14 +120,11 @@ def backup_folders():
 
     if folders:
         for (name, path) in folders.items():
-            if 'tar' in archcmd:
-                fullcmd = archcmd + " " + path + " " + localpath + name
-                pool.put(FolderBackup(fullcmd, name))
-            else:
-                fullcmd = archcmd + " " + localpath + name + " " + path
-                pool.put(FolderBackup(fullcmd, name))
+            fullcmd = archcmd + " " + localpath + name + extension + " " + path
+            pool.put(FolderBackup(fullcmd, name))
     else:
         print("Не назначены задания для директорий!")
+
 
 # pgcmd = "-h localhost -U $PG_USR -c $DB"
 
