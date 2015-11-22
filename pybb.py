@@ -203,7 +203,7 @@ pool.wait()
 # Чистим архив
 cleanup()
 # Пишем всякую чухню в лог и в консоль.
-send_push("Все готово, босс!", '0')
+send_push("Все готово, босс!", '-1')
 write_log("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
 input("Press enter to Exit")
