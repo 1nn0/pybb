@@ -7,13 +7,31 @@ from builtins import print
 from configparser import ConfigParser
 import workerpool
 import shutil
-
+import requests
 
 # Пишем логи, вот так просто.
 def write_log(message):
     with open("backup.log", 'a') as log:
         log.writelines(str(datetime.date.today()) + ': ' + message + "\n")
         log.close()
+
+def send_push(message, priority):
+    settings = params.get_push()
+    url = 'https://api.pushover.net/1/messages.json'
+    if settings:
+        print(settings)
+        notification = settings
+        notification['prioroty'] = str(priority)
+        notification['message'] = message
+        req = requests.post(url, data=notification)
+        if req.status_code == requests.codes.ok:
+            print('Push-сообщение отправлено')
+            write_log("Push-сообщение отправлено")
+        else:
+            print("Что-то пошло не так: " + str(req.json()))
+
+
+
 
 
 # Класс для получения настроек для заданий из конфига. Конфиг должен лежать в той-же директории
@@ -45,17 +63,32 @@ class Parameters(object):
         else:
             return False
 
-    # Метод заглушка для MySQL
+    # То же самое, только для MySQL
     def get_mysql(self):
-        pass
+        if 'mysql' in self.config.sections():
+            return dict(self.config.items('mysql'))
+        else:
+            return False
 
-    # Метод заглушка для PostgreSQL
+    # То же самое, только для PostgreSQL
     def get_psql(self):
-        pass
+        if 'psql' in self.config.sections():
+            return dict(self.config.items('psql'))
+        else:
+            return False
 
     # Метод заглушка для виртуальных машин VirtualBox
     def get_vms(self):
-        pass
+        if 'vms' in self.config.sections():
+            return dict(self.config.items('vms'))
+        else:
+            return False
+
+    def get_push(self):
+        if 'push' in self.config.sections():
+            return dict(self.config.items('push', raw=True))
+        else:
+            return False
 
 
 # Класс для подготовки задачи для пула модуля workerpool. Необходим для реализации последовательного
@@ -85,7 +118,7 @@ def backup_folders():
 
     if settings:
         try:
-            localpath = settings['path'] + str(date) + "\\"
+            localpath = os.path.join(settings['path'], str(date)) + os.sep
             if not os.path.isdir(localpath):
                 os.mkdir(localpath)
             write_log(localpath)
@@ -132,7 +165,7 @@ def backup_folders():
 def cleanup():
     # params = Parameters()
     days = int(params.get_params()['days'])
-    del_path = params.get_params()['path'] + str((datetime.date.today() - datetime.timedelta(days=days)))
+    del_path = os.path.join(params.get_params()['path'], str((datetime.date.today() - datetime.timedelta(days=days))))
     try:
         if os.path.isdir(del_path):
             shutil.rmtree(del_path)
@@ -157,6 +190,7 @@ pool.wait()
 # Чистим архив
 cleanup()
 # Пишем всякую чухню в лог и в консоль.
+send_push("Все готово, босс!", '0')
 write_log("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
 input("Press enter to Exit")
