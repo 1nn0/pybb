@@ -159,7 +159,8 @@ def backup_folders():
                     os.mkdir(os.path.join(localpath, name))
                 for item in os.listdir(path):
                     if not item.startswith('.') or os.path.isfile(os.path.join(path, item)):
-                        fullcmd = archcmd + " " + os.path.join(localpath, name, item) + extension + " " + os.path.join(path, item)
+                        fullcmd = archcmd + " " + os.path.join(localpath, name, item) + extension + " " + os.path.join(
+                            path, item)
                         pool.put(DoBackup(fullcmd, item))
             else:
                 fullcmd = archcmd + " " + localpath + name + extension + " " + path
@@ -170,19 +171,23 @@ def backup_folders():
 
 # Функция очистки от старых копий
 def cleanup():
-    # params = Parameters()
-    days = int(params.get_params()['days'])
-    del_path = os.path.join(params.get_params()['path'], str((datetime.date.today() - datetime.timedelta(days=days))))
     try:
+        days = int(params.get_params()['days'])
+        del_path = os.path.join(params.get_params()['path'],
+                                str((datetime.date.today() - datetime.timedelta(days=days))))
         if os.path.isdir(del_path):
             shutil.rmtree(del_path)
             write_log("Бекап удален: " + del_path)
         else:
             print("Нечего удалять.")
+    except KeyError:
+        write_log("При очистке возникла ошибка: не задан параметр days в секции [conf]")
+        print("Возникла какая-то ошибка при удалении: не задан параметр days в секции [conf]")
+        exit(1)
     except:
-        write_log("При очистке возникла ошибка, проверьте вручную.")
-        print("Возникла какая-то ошибка при удалении")
-
+        write_log("При очистке возникла какая-то ошибка, проверьте вручную")
+        send_push('При очистке возникла ошибка', '1')
+        
 
 # pgcmd = "-h localhost -U $PG_USR -c $DB"
 
