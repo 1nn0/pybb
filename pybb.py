@@ -214,7 +214,7 @@ def backup_vms(settings, vms_settings):
     return False
 
 
-# Функция очистки от старых резервных копий
+# Функция очистки от старых архивов
 def cleanup(settings):
     try:
         days = int(settings['days'])
