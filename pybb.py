@@ -29,11 +29,9 @@ def send_push(message, priority):
         else:
             notification['priority'] = int(priority)
         notification['message'] = message
-        print(notification)
         req = requests.post(url, data=notification)
         if req.status_code == requests.codes.ok:
-            print('Push-сообщение отправлено')
-            write_log("Push-сообщение отправлено")
+            write_log("Push-сообщение отправлено успешно!")
         else:
             print("Что-то пошло не так: " + str(req.json()))
     else:
@@ -144,8 +142,6 @@ class DoBackup(workerpool.Job):
 # Функция обработки заданий для директорий. Формирует команду для архивации и ставит задание в очередь.
 
 def backup_folders(settings, folders):
-    #   settings = params.get_params()
-    #   folders = params.get_folders()
 
     if settings:
         try:
@@ -213,11 +209,16 @@ def backup_databases(type, sql, settings):
             # pool.put(DoBackup(fullcmd, base))
 
 
+# Функция бекапа виртуальных машин VirtualBox (пока просто заглушка)
+def backup_vms(settings, vms_settings):
+    return False
+
+
 # Функция очистки от старых резервных копий
-def cleanup():
+def cleanup(settings):
     try:
-        days = int(params.get_params()['days'])
-        del_path = os.path.join(params.get_params()['path'],
+        days = int(settings['days'])
+        del_path = os.path.join(settings['path'],
                                 str((datetime.date.today() - datetime.timedelta(days=days))))
         if os.path.isdir(del_path):
             shutil.rmtree(del_path)
@@ -245,7 +246,7 @@ backup_databases('mysql', params.get_mysql(), setup)
 pool.shutdown()
 pool.wait()
 # Чистим архив
-cleanup()
+cleanup(setup)
 # Пишем всякую чухню в лог и в консоль.
 send_push("Все готово, босс!", -1)
 write_log("Such good, many backup, very archives, so wow!")
