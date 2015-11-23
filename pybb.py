@@ -67,23 +67,23 @@ class Parameters(object):
             if conf['arch'] == '7zip':
                 if os.name == 'nt':
                     conf['extension'] = '.7z'
-                    conf['archcmd'] = '7z.exe a -mx=9 -mfb=64'
-                    conf['archcmd_sql'] = '7z.exe a -mx=9 -mfb=64 -si '
+                    conf['archcmd'] = '7z.exe a -m0=lzma2 -mx=9 -mfb=64'
+                    conf['archcmd_sql'] = '7z.exe a -m0=lzma2 -mx=9 -mfb=64 -si '
                     print('Архиватор: ' + conf['arch'])
                 else:
                     conf['extension'] = '.7z'
-                    conf['archcmd'] = '7za a -mx=9 -mfb=64'
-                    conf['archcmd_sql'] = '7za a -mx=9 -mfb=64 -si '
+                    conf['archcmd'] = '7za a -m0=lzma2 -mx=9 -mfb=64'
+                    conf['archcmd_sql'] = '7za a -m0=lzma2 -mx=9 -mfb=64 -si '
                     print('Архиватор: ' + conf['arch'])
             elif conf['arch'] == 'bzip2':
                 conf['extension'] = '.tar.bz2'
                 conf['archcmd'] = 'tar -cvjSf'
-                conf['archcmd_sql'] = 'tar -cvjSf -T'
+                conf['archcmd_sql'] = 'bzip2 -cq9 > '
                 print('Архиватор: ' + conf['arch'])
             else:
                 conf['extension'] = '.tar.gz'
                 conf['archcmd'] = 'tar -zcvf'
-                conf['archcmd_sql'] = 'tar -zcvf -T'
+                conf['archcmd_sql'] = 'gzip -9 > '
                 print('Архиватор: ' + conf['arch'])
             conf['localpath'] = os.path.join(conf['path'], str(datetime.date.today())) + os.sep
             return conf
