@@ -26,6 +26,8 @@ def send_push(message, priority):
             notification['priority'] = int(priority)
             notification['retry'] = 30
             notification['expire'] = 360
+        else:
+            notification['priority'] = int(priority)
         notification['message'] = message
         print(notification)
         req = requests.post(url, data=notification)
@@ -63,7 +65,31 @@ class Parameters(object):
     def get_params(self):
 
         if 'conf' in self.config.sections():
-            return dict(self.config.items('conf'))
+            conf = dict(self.config.items('conf'))
+            if conf['arch'] == '7zip':
+                if os.name == 'nt':
+                    conf['extension'] = '.7z'
+                    conf['archcmd'] = '7z.exe a -mx=9 -mfb=64'
+                    conf['archcmd_sql'] = '7z.exe a -mx=9 -mfb=64 -si '
+                    print('Архиватор: ' + conf['arch'])
+                else:
+                    conf['extension'] = '.7z'
+                    conf['archcmd'] = '7za a -mx=9 -mfb=64'
+                    conf['archcmd_sql'] = '7za a -mx=9 -mfb=64 -si '
+                    print('Архиватор: ' + conf['arch'])
+            elif conf['arch'] == 'bzip2':
+                conf['extension'] = '.tar.bz2'
+                conf['archcmd'] = 'tar -cvjSf'
+                conf['archcmd_sql'] = 'tar -cvjSf -T'
+                print('Архиватор: ' + conf['arch'])
+            else:
+                conf['extension'] = '.tar.gz'
+                conf['archcmd'] = 'tar -zcvf'
+                conf['archcmd_sql'] = 'tar -zcvf -T'
+                print('Архиватор: ' + conf['arch'])
+            conf['localpath'] = os.path.join(conf['path'], str(datetime.date.today())) + os.sep
+            return conf
+
         else:
             return False
 
@@ -109,20 +135,21 @@ class DoBackup(workerpool.Job):
         try:
             subprocess.check_call(self.archivate, shell=True)
             write_log('Задание успешно выполнено: ' + self.name)
+            send_push('Архивация выполнена: ' + self.name, -2)
         except:
+            send_push('Возникла ошибка при выполнинии задания: ' + self.name, 1)
             write_log('Возникла ошибка при выполнинии задания: ' + str(subprocess.CalledProcessError))
 
 
 # Функция обработки заданий для директорий. Формирует команду для архивации и ставит задание в очередь.
-def backup_folders():
-    date = datetime.date.today()  # Дата исполнения с отсечением времени
-    # params = Parameters()
-    settings = params.get_params()
-    folders = params.get_folders()
+
+def backup_folders(settings, folders):
+    #   settings = params.get_params()
+    #   folders = params.get_folders()
 
     if settings:
         try:
-            localpath = os.path.join(settings['path'], str(date)) + os.sep
+            localpath = settings['localpath']
             if not os.path.isdir(localpath):
                 os.mkdir(localpath)
             write_log(localpath)
@@ -132,23 +159,8 @@ def backup_folders():
             exit(1)
 
         try:
-            if settings['arch'] == '7zip':
-                if os.name == 'nt':
-                    extension = '.7z'
-                    archcmd = '7z.exe a -mx=9 -mfb=64'
-                    print('Архиватор: ' + settings['arch'])
-                else:
-                    extension = '.7z'
-                    archcmd = '7za a -mx=9 -mfb=64'
-                    print('Архиватор: ' + settings['arch'])
-            elif settings['arch'] == 'bzip2':
-                extension = '.tar.bz2'
-                archcmd = 'tar -cvjSf'
-                print('Архиватор: ' + settings['arch'])
-            else:
-                extension = '.tar.gz'
-                archcmd = 'tar -zcvf'
-                print('Архиватор: ' + settings['arch'])
+            archcmd = settings['archcmd']
+            extension = settings['extension']
         except:
             print('Отсутсвует или неверно задана команда архивирования!')
             exit(1)
@@ -174,6 +186,33 @@ def backup_folders():
         print("Не назначены задания для директорий!")
 
 
+# Функция обработки заданий для баз данных MySQL\PostgreSQL
+
+def backup_databases(type, sql, settings):
+    user = sql['user']
+    password = sql['password']
+    host = sql['host']
+    bases = sql['bases']
+    archcmd = settings['archcmd_sql']
+    localpath = settings['localpath']
+    extension = settings['extension']
+    if not os.path.isdir(localpath):
+        os.mkdir(localpath)
+    if type == 'mysql':
+        for base in bases.split(" "):
+            archcmd2 = archcmd + os.path.join(localpath, base) + extension
+            fullcmd = 'mysqldump --opt -u {0} -p{1} -h {2} {3}'.format(user, password, host,
+                                                                       base) + " " + "|" + " " + archcmd2
+            print(fullcmd)
+            # pool.put(DoBackup(fullcmd, base))
+    elif type == 'psql':
+        for base in bases.split(" "):
+            archcmd2 = archcmd + os.path.join(localpath, base) + extension
+            fullcmd = 'pg_dump -u {0} -h {2} -c {3}'.format(user, host, base) + " " + "|" + " " + archcmd2
+            print(fullcmd)
+            # pool.put(DoBackup(fullcmd, base))
+
+
 # Функция очистки от старых резервных копий
 def cleanup():
     try:
@@ -195,14 +234,14 @@ def cleanup():
         send_push('При очистке возникла ошибка', '1')
 
 
-# pgcmd = "-h localhost -U $PG_USR -c $DB"
-
 # Иницализируем пул воркеров и очередь заданий.
 pool = workerpool.WorkerPool(size=1)
 # Инициализируем объект конфига
 params = Parameters()
+setup = params.get_params()
 # Выполняем задания
-backup_folders()
+backup_folders(setup, params.get_folders())
+backup_databases('mysql', params.get_mysql(), setup)
 pool.shutdown()
 pool.wait()
 # Чистим архив
