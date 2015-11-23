@@ -16,7 +16,7 @@ def write_log(message):
         log.writelines(str(datetime.date.today()) + ': ' + message + "\n")
         log.close()
 
-
+# Функция реальзует отправку Push-уведомлений через сервис Pushover
 def send_push(message, priority):
     settings = params.get_push()
     url = 'https://api.pushover.net/1/messages.json'
