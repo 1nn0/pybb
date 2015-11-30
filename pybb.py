@@ -8,6 +8,7 @@ from configparser import ConfigParser
 import workerpool
 import shutil
 import requests
+from ftplib import FTP
 
 
 # Пишем логи, вот так просто.
@@ -15,6 +16,7 @@ def write_log(message):
     with open("backup.log", 'a') as log:
         log.writelines(str(datetime.date.today()) + ': ' + message + "\n")
         log.close()
+
 
 # Функция реальзует отправку Push-уведомлений через сервис Pushover
 def send_push(message, priority):
@@ -26,8 +28,10 @@ def send_push(message, priority):
             notification['priority'] = int(priority)
             notification['retry'] = 30
             notification['expire'] = 360
+            notification['title'] = 'ВНИМАНИЕ!'
         else:
             notification['priority'] = int(priority)
+            notification['title'] = 'Инфо.'
         notification['message'] = message
         req = requests.post(url, data=notification)
         if req.status_code == requests.codes.ok:
@@ -85,7 +89,7 @@ class Parameters(object):
                 conf['archcmd'] = 'tar -zcvf'
                 conf['archcmd_sql'] = 'gzip -9 > '
                 print('Архиватор: ' + conf['arch'])
-            conf['localpath'] = os.path.join(conf['path'], str(datetime.date.today())) + os.sep
+            conf['localpath'] = os.path.join(conf['path'], str(datetime.date.today()))
             return conf
 
         else:
@@ -118,6 +122,18 @@ class Parameters(object):
         else:
             return False
 
+    def get_ftp(self):
+        if 'ftp' in self.config.sections():
+            ftp_settings = dict(self.config.items('ftp', raw=True))
+            if 'user' in ftp_settings.keys():
+                if ftp_settings['user'] == '':
+                    ftp_settings['user'] = 'Anonymous'
+            else:
+                print('Ошибка в секции [ftp] параметр user')
+            return ftp_settings
+        else:
+            return False
+
 
 # Класс для подготовки задачи для пула модуля workerpool. Необходим для реализации последовательного
 # выполнения всех архиваций или же многопоточной архивации\копирования файлов и каталогов
@@ -142,7 +158,6 @@ class DoBackup(workerpool.Job):
 # Функция обработки заданий для директорий. Формирует команду для архивации и ставит задание в очередь.
 
 def backup_folders(settings, folders):
-
     if settings:
         try:
             localpath = settings['localpath']
@@ -176,7 +191,7 @@ def backup_folders(settings, folders):
                             path, item)
                         pool.put(DoBackup(fullcmd, item))
             else:
-                fullcmd = archcmd + " " + localpath + name + extension + " " + path
+                fullcmd = archcmd + " " + os.path.join(localpath, name) + extension + " " + path
                 pool.put(DoBackup(fullcmd, name))
     else:
         print("Не назначены задания для директорий!")
@@ -213,6 +228,71 @@ def backup_databases(type, sql, settings):
 def backup_vms(settings, vms_settings):
     return False
 
+def ftp_upload(path, ftp):
+    if os.path.isdir(path):
+        files = os.listdir(path)
+        os.chdir(path)
+        for f in files:
+            if os.path.isfile(os.path.join(path, f)):
+                fh = open(f, 'rb')
+                ftp.storbinary('STOR %s' % f, fh)
+                fh.close()
+            elif os.path.isdir(os.path.join(path, f)):
+                ftp.mkd(f)
+                ftp.cwd(f)
+                ftp_upload(os.path.join(path, f), ftp)
+    else:
+        f = open(path, 'rb')
+        ftp.storbinary('STOR %s' % os.path.basename(path), f)
+        f.close()
+
+    ftp.cwd('..')
+    os.chdir('..')
+
+# Функция для синхронизации локальных каталогов с ФТП-сервером.
+def ftp_sync(settings, ftp_settings):
+    localpath = os.path.dirname(settings['localpath'])
+    print(localpath)
+    remote_path = ftp_settings['remote_path']
+    host = ftp_settings['host']
+    user = ftp_settings['user']
+    if not user == 'Anonymous':
+        password = ftp_settings['password']
+    else:
+        password = ''
+    try:
+        ftp = FTP(host)
+    except:
+        print('Не могу соединится с FTP-сервером, проверьте настройки')
+        write_log('Не могу соединится с FTP-сервером, проверьте настройки')
+        send_push('Не могу соединится с FTP-сервером, проверьте настройки', 1)
+
+    ftp.login(user=user, passwd=password)
+    ftp.set_pasv(True)
+    ftp.cwd(remote_path)
+    print('Ftp NLST ' + str(ftp.nlst()))
+    os.chdir(os.path.abspath(localpath))
+
+    local_files = set(os.listdir(localpath))
+    remote_files = set(ftp.nlst())
+    transfer_list = list(local_files - remote_files)
+    delete_list = list(remote_files - local_files)
+    print('Transfer list ' + str(transfer_list))
+    print('Delete list ' + str(delete_list))
+    for item in transfer_list:
+        if os.path.isdir(os.path.join(localpath, item)):
+            ftp.mkd(remote_path + '/' + item)
+            ftp.cwd(remote_path + '/' + item)
+            item = os.path.join(localpath, item)
+            print(item)
+            ftp_upload(item, ftp)
+        else:
+            ftp_upload(item, ftp)
+
+
+    ftp.quit()
+    ftp.close()
+
 
 # Функция очистки от старых архивов
 def cleanup(settings):
@@ -247,6 +327,8 @@ pool.shutdown()
 pool.wait()
 # Чистим архив
 cleanup(setup)
+ftp_sync(setup, params.get_ftp())
+
 # Пишем всякую чухню в лог и в консоль.
 send_push("Все готово, босс!", -1)
 write_log("Such good, many backup, very archives, so wow!")
