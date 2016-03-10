@@ -251,6 +251,7 @@ def ftp_upload(path, ftp):
 
 # Функция для синхронизации локальных каталогов с ФТП-сервером.
 def ftp_sync(settings, ftp_settings):
+
     localpath = os.path.dirname(settings['localpath'])
     print(localpath)
     remote_path = ftp_settings['remote_path']
@@ -328,11 +329,19 @@ elif params.get_mysql():
     backup_databases('mysql', params.get_mysql(), setup)
 else:
     write_log("Нет БД для резервирования")
+
+#Завершаем нашу очередь заданий
 pool.shutdown()
 pool.wait()
+
 # Чистим архив
 cleanup(setup)
-ftp_sync(setup, params.get_ftp())
+
+# Синхронизируем с ФТП, если настроили
+if params.get_ftp():
+    ftp_sync(setup, params.get_ftp())
+else:
+    print("Сихронизация с ФТП не настроена.")
 
 # Пишем всякую чухню в лог и в консоль.
 send_push("Все готово, босс!", -1)
