@@ -1,4 +1,4 @@
-#! python3
+#!/usr/bin/python3.4
 
 import datetime
 import os
@@ -51,7 +51,7 @@ class Parameters(object):
             self.config.read('config.ini')
         else:
             print("Не найден конфиг!")
-            exit(1)
+            os._exit(1)
 
     # Метод проверяет задана ли секция в конфиге отвечающая за пути к директориям для бекапа
     # если задана, возвращает словарь вида {имя_бекапа: путь}
@@ -167,18 +167,18 @@ def backup_folders(settings, folders):
             print('Директория для бекапов: ' + localpath)
         except:
             print('Не задана или не существует директория для хранения резервных копий!')
-            exit(1)
+            os._exit(1)
 
         try:
             archcmd = settings['archcmd']
             extension = settings['extension']
         except:
             print('Отсутсвует или неверно задана команда архивирования!')
-            exit(1)
+            os._exit(1)
 
     else:
         print('В конфиге отсутствуют настройки архивации и ханения! Проверь конфиг!')
-        exit(1)
+        os._exit(1)
 
     if folders:
         for (name, path) in folders.items():
@@ -215,13 +215,13 @@ def backup_databases(type, sql, settings):
             fullcmd = 'mysqldump --opt -u {0} -p{1} -h {2} {3}'.format(user, password, host,
                                                                        base) + " " + "|" + " " + archcmd2
             print(fullcmd)
-            # pool.put(DoBackup(fullcmd, base))
+            pool.put(DoBackup(fullcmd, base))
     elif type == 'psql':
         for base in bases.split(" "):
             archcmd2 = archcmd + os.path.join(localpath, base) + extension
-            fullcmd = 'pg_dump -u {0} -h {2} -c {3}'.format(user, host, base) + " " + "|" + " " + archcmd2
+            fullcmd = 'pg_dump -U {0} -h {1} -c {2}'.format(user, host, base) + " " + "|" + " " + archcmd2
             print(fullcmd)
-            # pool.put(DoBackup(fullcmd, base))
+            pool.put(DoBackup(fullcmd, base))
 
 
 # Функция бекапа виртуальных машин VirtualBox (пока просто заглушка)
@@ -322,7 +322,12 @@ params = Parameters()
 setup = params.get_params()
 # Выполняем задания
 backup_folders(setup, params.get_folders())
-backup_databases('mysql', params.get_mysql(), setup)
+if params.get_psql():
+    backup_databases('psql', params.get_psql(), setup)
+elif params.get_mysql():
+    backup_databases('mysql', params.get_mysql(), setup)
+else:
+    write_log("Нет БД для резервирования")
 pool.shutdown()
 pool.wait()
 # Чистим архив
@@ -333,4 +338,3 @@ ftp_sync(setup, params.get_ftp())
 send_push("Все готово, босс!", -1)
 write_log("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
-input("Press enter to Exit")
