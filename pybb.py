@@ -191,8 +191,9 @@ def backup_folders(settings, folders):
                     os.mkdir(os.path.join(localpath, name))
                 for item in os.listdir(path):
                     if not item.startswith('.') or os.path.isfile(os.path.join(path, item)):
-                        fullcmd = archcmd + " " + os.path.join(localpath, name, item) + extension + " " + os.path.join(
-                                path, item)
+                        backup_file = "\'{0}\'".format(os.path.join(localpath, name, item) + extension)
+                        backup_path = "\'{0}\'".format(os.path.join(path, item))
+                        fullcmd = archcmd + " " + backup_file + " " + backup_path
                         pool.put(DoBackup(fullcmd, item))
             else:
                 fullcmd = archcmd + " " + os.path.join(localpath, name) + extension + " " + path
