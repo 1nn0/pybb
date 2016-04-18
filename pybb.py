@@ -251,9 +251,15 @@ def ftp_upload(path, ftp):
     ftp.cwd('..')
     os.chdir('..')
 
-#Рекурсвная функция удаления файлов с ФТП
+#Функция удаления каталогов с бекапами файлов с ФТП
 def ftp_delete(delete_list, ftp):
-    pass
+    for directory in delete_list:
+        ftp.cwd(directory)
+        for item in ftp.nlst():
+            ftp.delete(item)
+        ftp.cwd('..')
+        ftp.rmd(directory)
+
 
 # Функция для синхронизации локальных каталогов с ФТП-сервером.
 def ftp_sync(settings, ftp_settings):
