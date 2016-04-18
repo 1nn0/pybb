@@ -11,6 +11,7 @@ import requests
 from ftplib import FTP
 import logging
 from filecmp import cmp
+import sys
 
 # Конфигурация логов
 script_directory = os.path.dirname(os.path.realpath(__file__))
@@ -336,7 +337,7 @@ def self_updater():
         shutil.copyfile(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'))
         os.remove(os.path.join(script_directory, tmp_name))
         logging.info('Restarting script')
-        os.execl(os.path.join(script_directory, 'pybb.py'), "")
+        os.execv(__file__, sys.argv)
         os._exit(0)
 
 
