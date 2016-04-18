@@ -12,7 +12,6 @@ from ftplib import FTP
 import logging
 from filecmp import cmp
 
-
 # Конфигурация логов
 script_directory = os.path.dirname(os.path.realpath(__file__))
 logfile = os.path.join(script_directory, 'backup.log')
@@ -229,7 +228,8 @@ def backup_databases(type, sql, settings):
 def backup_vms(settings, vms_settings):
     return False
 
-#Рекурсивная функция аплода на ФТП.
+
+# Рекурсивная функция аплода на ФТП.
 def ftp_upload(path, ftp):
     if os.path.isdir(path):
         files = os.listdir(path)
@@ -251,7 +251,8 @@ def ftp_upload(path, ftp):
     ftp.cwd('..')
     os.chdir('..')
 
-#Функция удаления каталогов с бекапами файлов с ФТП
+
+# Функция удаления каталогов с бекапами файлов с ФТП
 def ftp_delete(delete_list, ftp):
     for directory in delete_list:
         ftp.cwd(directory)
@@ -320,6 +321,7 @@ def cleanup(settings):
         logging.error("При очистке возникла какая-то ошибка, проверьте вручную")
         send_push('При очистке возникла ошибка', '1')
 
+
 # Функция авто обновления
 def self_updater():
     user_agent = {'User-agent': 'Mozilla/5.0'}
@@ -327,7 +329,7 @@ def self_updater():
     req = requests.get('https://raw.githubusercontent.com/1nn0/pybb/master/pybb.py', headers=user_agent)
     with open(os.path.join(script_directory, tmp_name), 'wb') as f:
         f.write(req.content)
-    if cmp(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'),shallow=False):
+    if cmp(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'), shallow=False):
         logging.info('Files identical, skipping update')
     else:
         logging.info('Performing update')
@@ -336,6 +338,7 @@ def self_updater():
         logging.info('Restarting script')
         os.execl(os.path.join(script_directory, 'pybb.py'), "")
         os._exit(0)
+
 
 # Проверяем обновления
 self_updater()
