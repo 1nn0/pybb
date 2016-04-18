@@ -240,7 +240,7 @@ def ftp_upload(path, ftp):
         for f in files:
             if os.path.isfile(os.path.join(path, f)):
                 fh = open(f, 'rb')
-                ftp.storbinary('STOR %s' % f, fh)
+                ftp.storbinary('STOR %s' % f.encode("utf8"), fh)
                 fh.close()
             elif os.path.isdir(os.path.join(path, f)):
                 ftp.mkd(f)
@@ -248,7 +248,7 @@ def ftp_upload(path, ftp):
                 ftp_upload(os.path.join(path, f), ftp)
     else:
         f = open(path, 'rb')
-        ftp.storbinary('STOR %s' % os.path.basename(path), f)
+        ftp.storbinary('STOR %s' % os.path.basename(path).encode("utf8"), f)
         f.close()
 
     ftp.cwd('..')
@@ -256,13 +256,10 @@ def ftp_upload(path, ftp):
 
 
 # Функция удаления каталогов с бекапами файлов с ФТП
-def ftp_delete(delete_list, ftp):
-    for directory in delete_list:
-        ftp.cwd(directory)
-        for item in ftp.nlst():
-            ftp.delete(item)
-        ftp.cwd('..')
-        ftp.rmd(directory)
+def ftp_delete(item, ftp):
+    if item in ftp.nlst():
+        ftp.rmd(item)
+
 
 
 # Функция для синхронизации локальных каталогов с ФТП-сервером.
@@ -293,13 +290,16 @@ def ftp_sync(settings, ftp_settings):
     logging.info('Transfer list ' + str(transfer_list))
     logging.info('Delete list ' + str(delete_list))
     for item in transfer_list:
-        if os.path.isdir(os.path.join(localpath, item)):
-            ftp.mkd(remote_path + '/' + item)
-            ftp.cwd(remote_path + '/' + item)
-            item = os.path.join(localpath, item)
-            ftp_upload(item, ftp)
-        else:
-            ftp_upload(item, ftp)
+#        if os.path.isdir(os.path.join(localpath, item)):
+#            ftp.mkd(remote_path + '/' + item)
+##            ftp.cwd(remote_path + '/' + item)
+#            item = os.path.join(localpath, item)
+#            ftp_upload(item, ftp)
+#        else:
+            ftp_upload(os.path.join(localpath, item), ftp)
+
+    for item in delete_list:
+        ftp_delete(item, ftp)
 
     ftp.quit()
     ftp.close()
