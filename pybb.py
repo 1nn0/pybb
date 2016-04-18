@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#Простой велосипед для резервного копирования.
 
 import datetime
 import os
