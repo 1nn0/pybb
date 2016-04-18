@@ -323,21 +323,24 @@ def self_updater():
     if cmp(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'),shallow=False):
         logging.info('Files identical, skipping update')
     else:
+        logging.info('Performing update')
         shutil.copyfile(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'))
+        logging.info('Restarting script')
         os.execl(os.path.join(script_directory, 'pybb.py'))
         os._exit(0)
 
-logging.info(os.getcwd())
+# Проверяем обновления
+self_updater()
 # Иницализируем пул воркеров и очередь заданий.
 logging.info("Init pool")
 pool = workerpool.WorkerPool(size=1)
 # Инициализируем объект конфига
 logging.info('Init params')
 params = Parameters()
-logging.info('Init setup')
+logging.info('Get settings')
 setup = params.get_params()
 # Выполняем задания
-logging.info('init folders')
+logging.info('Init folders')
 backup_folders(setup, params.get_folders())
 logging.info('SQL if\else')
 if params.get_psql():
