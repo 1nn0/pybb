@@ -333,6 +333,7 @@ def self_updater():
         f.write(req.content)
     if cmp(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'), shallow=False):
         logging.info('Files identical, skipping update')
+        os.remove(os.path.join(script_directory, tmp_name))
     else:
         logging.info('Performing update')
         shutil.copyfile(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'))
