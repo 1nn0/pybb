@@ -332,8 +332,9 @@ def self_updater():
     else:
         logging.info('Performing update')
         shutil.copyfile(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'))
+        os.remove(os.path.join(script_directory, tmp_name))
         logging.info('Restarting script')
-        os.execl(os.path.join(script_directory, 'pybb.py'))
+        os.execl(os.path.join(script_directory, 'pybb.py'), "")
         os._exit(0)
 
 # Проверяем обновления
