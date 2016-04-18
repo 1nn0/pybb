@@ -3,19 +3,21 @@
 import datetime
 import os
 import subprocess
-from builtins import print
 from configparser import ConfigParser
 import workerpool
 import shutil
 import requests
 from ftplib import FTP
+import logging
+from filecmp import cmp
 
 
-# Пишем логи, вот так просто.
-def write_log(message):
-    with open("backup.log", 'a') as log:
-        log.writelines(str(datetime.date.today()) + ': ' + message + "\n")
-        log.close()
+# Конфигурация логов
+script_directory = os.path.dirname(os.path.realpath(__file__))
+logfile = os.path.join(script_directory, 'backup.log')
+log_format = '%(levelname)-8s [%(asctime)s] %(message)s'
+log_level = logging.INFO
+logging.basicConfig(format=log_format, level=log_level, filename=logfile)
 
 
 # Функция реальзует отправку Push-уведомлений через сервис Pushover
@@ -35,11 +37,11 @@ def send_push(message, priority):
         notification['message'] = message
         req = requests.post(url, data=notification)
         if req.status_code == requests.codes.ok:
-            write_log("Push-сообщение отправлено успешно!")
+            logging.info("Push-сообщение отправлено успешно!")
         else:
-            print("Что-то пошло не так: " + str(req.json()))
+            logging.error("Что-то пошло не так: " + str(req.json()))
     else:
-        print('Не заданы параметры для Push-уведомлений, проверьте секцию [push] в конфиге')
+        logging.warning('Не заданы параметры для Push-уведомлений, проверьте секцию [push] в конфиге')
 
 
 # Класс для получения настроек для заданий из конфига. Конфиг должен лежать в той-же директории
@@ -47,10 +49,11 @@ def send_push(message, priority):
 class Parameters(object):
     def __init__(self):
         self.config = ConfigParser()
-        if os.path.isfile('config.ini'):
-            self.config.read('config.ini')
+        if os.path.isfile(os.path.join(script_directory, 'config.ini')):
+            self.config.read(os.path.join(script_directory, 'config.ini'))
+            logging.info('Конфиг найден!')
         else:
-            print("Не найден конфиг!")
+            logging.error("Не найден конфиг!")
             os._exit(1)
 
     # Метод проверяет задана ли секция в конфиге отвечающая за пути к директориям для бекапа
@@ -73,22 +76,22 @@ class Parameters(object):
                     conf['extension'] = '.7z'
                     conf['archcmd'] = '7z.exe a -m0=lzma2 -mx=9 -mfb=64'
                     conf['archcmd_sql'] = '7z.exe a -m0=lzma2 -mx=9 -mfb=64 -si '
-                    print('Архиватор: ' + conf['arch'])
+                    logging.info('Архиватор: ' + conf['arch'])
                 else:
                     conf['extension'] = '.7z'
                     conf['archcmd'] = '7za a -m0=lzma2 -mx=9 -mfb=64'
                     conf['archcmd_sql'] = '7za a -m0=lzma2 -mx=9 -mfb=64 -si '
-                    print('Архиватор: ' + conf['arch'])
+                    logging.info('Архиватор: ' + conf['arch'])
             elif conf['arch'] == 'bzip2':
                 conf['extension'] = '.tar.bz2'
                 conf['archcmd'] = 'tar -cvjSf'
                 conf['archcmd_sql'] = 'bzip2 -cq9 > '
-                print('Архиватор: ' + conf['arch'])
+                logging.info('Архиватор: ' + conf['arch'])
             else:
                 conf['extension'] = '.tar.gz'
                 conf['archcmd'] = 'tar -zcvf'
                 conf['archcmd_sql'] = 'gzip -9 > '
-                print('Архиватор: ' + conf['arch'])
+                logging.info('Архиватор: ' + conf['arch'])
             conf['localpath'] = os.path.join(conf['path'], str(datetime.date.today()))
             return conf
 
@@ -129,7 +132,7 @@ class Parameters(object):
                 if ftp_settings['user'] == '':
                     ftp_settings['user'] = 'Anonymous'
             else:
-                print('Ошибка в секции [ftp] параметр user')
+                logging.error('Ошибка в секции [ftp] параметр user')
             return ftp_settings
         else:
             return False
@@ -148,11 +151,11 @@ class DoBackup(workerpool.Job):
     def run(self):
         try:
             subprocess.check_call(self.archivate, shell=True)
-            write_log('Задание успешно выполнено: ' + self.name)
+            logging.info('Задание успешно выполнено: ' + self.name)
             send_push('Архивация выполнена: ' + self.name, -2)
         except:
             send_push('Возникла ошибка при выполнинии задания: ' + self.name, 1)
-            write_log('Возникла ошибка при выполнинии задания: ' + str(subprocess.CalledProcessError))
+            logging.info('Возникла ошибка при выполнинии задания: ' + str(subprocess.CalledProcessError))
 
 
 # Функция обработки заданий для директорий. Формирует команду для архивации и ставит задание в очередь.
@@ -163,21 +166,20 @@ def backup_folders(settings, folders):
             localpath = settings['localpath']
             if not os.path.isdir(localpath):
                 os.mkdir(localpath)
-            write_log(localpath)
-            print('Директория для бекапов: ' + localpath)
+            logging.info('Директория для бекапов: ' + localpath)
         except:
-            print('Не задана или не существует директория для хранения резервных копий!')
+            logging.error('Не задана или не существует директория для хранения резервных копий!')
             os._exit(1)
 
         try:
             archcmd = settings['archcmd']
             extension = settings['extension']
         except:
-            print('Отсутсвует или неверно задана команда архивирования!')
+            logging.error('Отсутсвует или неверно задана команда архивирования!')
             os._exit(1)
 
     else:
-        print('В конфиге отсутствуют настройки архивации и ханения! Проверь конфиг!')
+        logging.critical('В конфиге отсутствуют настройки архивации и ханения! Проверь конфиг!')
         os._exit(1)
 
     if folders:
@@ -188,13 +190,13 @@ def backup_folders(settings, folders):
                 for item in os.listdir(path):
                     if not item.startswith('.') or os.path.isfile(os.path.join(path, item)):
                         fullcmd = archcmd + " " + os.path.join(localpath, name, item) + extension + " " + os.path.join(
-                            path, item)
+                                path, item)
                         pool.put(DoBackup(fullcmd, item))
             else:
                 fullcmd = archcmd + " " + os.path.join(localpath, name) + extension + " " + path
                 pool.put(DoBackup(fullcmd, name))
     else:
-        print("Не назначены задания для директорий!")
+        logging.info("Не назначены задания для директорий!")
 
 
 # Функция обработки заданий для баз данных MySQL\PostgreSQL
@@ -214,13 +216,11 @@ def backup_databases(type, sql, settings):
             archcmd2 = archcmd + os.path.join(localpath, base) + extension
             fullcmd = 'mysqldump --opt -u {0} -p{1} -h {2} {3}'.format(user, password, host,
                                                                        base) + " " + "|" + " " + archcmd2
-            print(fullcmd)
             pool.put(DoBackup(fullcmd, base))
     elif type == 'psql':
         for base in bases.split(" "):
             archcmd2 = archcmd + os.path.join(localpath, base) + extension
             fullcmd = 'pg_dump -U {0} -h {1} -c {2}'.format(user, host, base) + " " + "|" + " " + archcmd2
-            print(fullcmd)
             pool.put(DoBackup(fullcmd, base))
 
 
@@ -228,6 +228,7 @@ def backup_databases(type, sql, settings):
 def backup_vms(settings, vms_settings):
     return False
 
+#Рекурсивная функция аплода на ФТП.
 def ftp_upload(path, ftp):
     if os.path.isdir(path):
         files = os.listdir(path)
@@ -249,11 +250,13 @@ def ftp_upload(path, ftp):
     ftp.cwd('..')
     os.chdir('..')
 
+#Рекурсвная функция удаления файлов с ФТП
+def ftp_delete(delete_list, ftp):
+    pass
+
 # Функция для синхронизации локальных каталогов с ФТП-сервером.
 def ftp_sync(settings, ftp_settings):
-
     localpath = os.path.dirname(settings['localpath'])
-    print(localpath)
     remote_path = ftp_settings['remote_path']
     host = ftp_settings['host']
     user = ftp_settings['user']
@@ -264,32 +267,28 @@ def ftp_sync(settings, ftp_settings):
     try:
         ftp = FTP(host)
     except:
-        print('Не могу соединится с FTP-сервером, проверьте настройки')
-        write_log('Не могу соединится с FTP-сервером, проверьте настройки')
+        logging.error('Не могу соединится с FTP-сервером, проверьте настройки')
         send_push('Не могу соединится с FTP-сервером, проверьте настройки', 1)
 
     ftp.login(user=user, passwd=password)
     ftp.set_pasv(True)
     ftp.cwd(remote_path)
-    print('Ftp NLST ' + str(ftp.nlst()))
+    logging.info('Ftp NLST ' + str(ftp.nlst()))
     os.chdir(os.path.abspath(localpath))
-
     local_files = set(os.listdir(localpath))
     remote_files = set(ftp.nlst())
     transfer_list = list(local_files - remote_files)
     delete_list = list(remote_files - local_files)
-    print('Transfer list ' + str(transfer_list))
-    print('Delete list ' + str(delete_list))
+    logging.info('Transfer list ' + str(transfer_list))
+    logging.info('Delete list ' + str(delete_list))
     for item in transfer_list:
         if os.path.isdir(os.path.join(localpath, item)):
             ftp.mkd(remote_path + '/' + item)
             ftp.cwd(remote_path + '/' + item)
             item = os.path.join(localpath, item)
-            print(item)
             ftp_upload(item, ftp)
         else:
             ftp_upload(item, ftp)
-
 
     ftp.quit()
     ftp.close()
@@ -303,34 +302,52 @@ def cleanup(settings):
                                 str((datetime.date.today() - datetime.timedelta(days=days))))
         if os.path.isdir(del_path):
             shutil.rmtree(del_path)
-            write_log("Бекап удален: " + del_path)
+            logging.warning("Бекап удален: " + del_path)
         else:
-            print("Нечего удалять.")
+            logging.info("Нечего удалять.")
     except KeyError:
-        write_log("При очистке возникла ошибка: не задан параметр days в секции [conf]")
-        print("Возникла какая-то ошибка при удалении: не задан параметр days в секции [conf]")
+        logging.error("Возникла какая-то ошибка при удалении: не задан параметр days в секции [conf]")
         send_push('При очистке возникла ошибка', '1')
         exit(1)
     except:
-        write_log("При очистке возникла какая-то ошибка, проверьте вручную")
+        logging.error("При очистке возникла какая-то ошибка, проверьте вручную")
         send_push('При очистке возникла ошибка', '1')
 
+# Функция авто обновления
+def self_updater():
+    user_agent = {'User-agent': 'Mozilla/5.0'}
+    tmp_name = 'tmp'
+    req = requests.get('https://raw.githubusercontent.com/1nn0/pybb/master/pybb.py', headers=user_agent)
+    with open(os.path.join(script_directory, tmp_name), 'wb') as f:
+        f.write(req.content)
+    if cmp(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'),shallow=False):
+        logging.info('Files identical, skipping update')
+    else:
+        shutil.copyfile(os.path.join(script_directory, tmp_name), os.path.join(script_directory, 'pybb.py'))
+        os.execl(os.path.join(script_directory, 'pybb.py'))
+        os._exit(0)
 
+logging.info(os.getcwd())
 # Иницализируем пул воркеров и очередь заданий.
+logging.info("Init pool")
 pool = workerpool.WorkerPool(size=1)
 # Инициализируем объект конфига
+logging.info('Init params')
 params = Parameters()
+logging.info('Init setup')
 setup = params.get_params()
 # Выполняем задания
+logging.info('init folders')
 backup_folders(setup, params.get_folders())
+logging.info('SQL if\else')
 if params.get_psql():
     backup_databases('psql', params.get_psql(), setup)
 elif params.get_mysql():
     backup_databases('mysql', params.get_mysql(), setup)
 else:
-    write_log("Нет БД для резервирования")
+    logging.info("Нет БД для резервирования")
 
-#Завершаем нашу очередь заданий
+# Завершаем нашу очередь заданий
 pool.shutdown()
 pool.wait()
 
@@ -341,9 +358,9 @@ cleanup(setup)
 if params.get_ftp():
     ftp_sync(setup, params.get_ftp())
 else:
-    print("Сихронизация с ФТП не настроена.")
+    logging.warning("Сихронизация с ФТП не настроена.")
 
 # Пишем всякую чухню в лог и в консоль.
 send_push("Все готово, босс!", -1)
-write_log("Such good, many backup, very archives, so wow!")
+logging.info("Such good, many backup, very archives, so wow!")
 print("Such good, many backup, very archives, so wow!")
