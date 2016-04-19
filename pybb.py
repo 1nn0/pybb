@@ -256,9 +256,22 @@ def ftp_upload(path, ftp):
 
 
 # Функция удаления каталогов с бекапами файлов с ФТП
-def ftp_delete(item, ftp):
-    if item in ftp.nlst():
-        ftp.rmd(item)
+def ftp_delete(path, ftp):
+    work_dir = ftp.pwd()
+    item_list = ftp.nlst(path)
+    for item in item_list:
+        if item == "." or item == "..":
+            continue
+        try:
+            ftp.cwd(item)  # if we can cwd to it, it's a folder
+            ftp.cwd(work_dir)  # don't try a nuke a folder we're in
+            ftp_delete(item, ftp)
+        except:
+            ftp.delete(item)
+    try:
+        ftp.rmd(path)
+    except:
+        logging.error('ftp_delete: не могу удалить {0}: {1}'.format(path))
 
 
 
