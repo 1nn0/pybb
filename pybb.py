@@ -234,17 +234,20 @@ def backup_vms(settings, vms_settings):
 
 # Рекурсивная функция аплода на ФТП.
 def ftp_upload(path, ftp):
+    logging.info("Starting upload")
     if os.path.isdir(path):
         files = os.listdir(path)
         os.chdir(path)
         for f in files:
             if os.path.isfile(os.path.join(path, f)):
                 fh = open(f, 'rb')
+                logging.info('Uploading file {0}'.format(f))
                 ftp.storbinary('STOR %s' % f.encode("utf8"), fh)
                 fh.close()
             elif os.path.isdir(os.path.join(path, f)):
                 ftp.mkd(f)
                 ftp.cwd(f)
+                logging.info('Uploading folder {}'.format(f))
                 ftp_upload(os.path.join(path, f), ftp)
     else:
         f = open(path, 'rb')
