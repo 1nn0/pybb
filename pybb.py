@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-#Простой велосипед для резервного копирования данных
+# Простой велосипед для резервного копирования данных
 
 import datetime
 import os
@@ -277,7 +277,6 @@ def ftp_delete(path, ftp):
         logging.error('ftp_delete: не могу удалить {0}: {1}'.format(path))
 
 
-
 # Функция для синхронизации локальных каталогов с ФТП-сервером.
 def ftp_sync(settings, ftp_settings):
     localpath = os.path.dirname(settings['localpath'])
@@ -306,13 +305,13 @@ def ftp_sync(settings, ftp_settings):
     logging.info('Transfer list ' + str(transfer_list))
     logging.info('Delete list ' + str(delete_list))
     for item in transfer_list:
-#        if os.path.isdir(os.path.join(localpath, item)):
-#            ftp.mkd(remote_path + '/' + item)
-##            ftp.cwd(remote_path + '/' + item)
-#            item = os.path.join(localpath, item)
-#            ftp_upload(item, ftp)
-#        else:
-            ftp_upload(os.path.join(localpath, item), ftp)
+        #        if os.path.isdir(os.path.join(localpath, item)):
+        #            ftp.mkd(remote_path + '/' + item)
+        ##            ftp.cwd(remote_path + '/' + item)
+        #            item = os.path.join(localpath, item)
+        #            ftp_upload(item, ftp)
+        #        else:
+        ftp_upload(os.path.join(localpath, item), ftp)
 
     for item in delete_list:
         ftp_delete(item, ftp)
