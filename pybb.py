@@ -266,8 +266,8 @@ def ftp_delete(path, ftp):
         if item == "." or item == "..":
             continue
         try:
-            ftp.cwd(item)  # if we can cwd to it, it's a folder
-            ftp.cwd(work_dir)  # don't try a nuke a folder we're in
+            ftp.cwd(item)  # если можно, то это папка
+            ftp.cwd(work_dir)  # не пытаемся удалить каталог, где мы сейчас находимся
             ftp_delete(item, ftp)
         except:
             ftp.delete(item)
