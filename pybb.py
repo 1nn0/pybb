@@ -242,7 +242,7 @@ def ftp_upload(path, ftp):
             if os.path.isfile(os.path.join(path, f)):
                 fh = open(f, 'rb')
                 logging.info('Uploading file {0}'.format(f))
-                ftp.storbinary('STOR %s' % f.encode("utf8"), fh)
+                ftp.storbinary('STOR {0}'.format(f.encode("utf8")), fh)
                 fh.close()
             elif os.path.isdir(os.path.join(path, f)):
                 ftp.mkd(f)
