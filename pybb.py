@@ -242,9 +242,9 @@ def ftp_upload(path, ftp):
             if os.path.isfile(os.path.join(path, f)):
                 fh = open(f, 'rb')
                 logging.info('Uploading file {0}'.format(f))
-                ftp.storbinary('STOR {0}'.format(f.encode("utf8")), fh)
+                ftp.storbinary('STOR {0}'.format(f), fh)
                 fh.close()
-            elif os.path.isdir(os.path.join(path, f)):
+            else:
                 ftp.mkd(f)
                 ftp.cwd(f)
                 logging.info('Uploading folder {}'.format(f))
@@ -305,13 +305,13 @@ def ftp_sync(settings, ftp_settings):
     logging.info('Transfer list ' + str(transfer_list))
     logging.info('Delete list ' + str(delete_list))
     for item in transfer_list:
-        #        if os.path.isdir(os.path.join(localpath, item)):
-        #            ftp.mkd(remote_path + '/' + item)
-        ##            ftp.cwd(remote_path + '/' + item)
-        #            item = os.path.join(localpath, item)
-        #            ftp_upload(item, ftp)
-        #        else:
-        ftp_upload(os.path.join(localpath, item), ftp)
+                if os.path.isdir(os.path.join(localpath, item)):
+                    ftp.mkd(remote_path + '/' + item)
+                    ftp.cwd(remote_path + '/' + item)
+                    item = os.path.join(localpath, item)
+                    ftp_upload(item, ftp)
+                else:
+                    ftp_upload(os.path.join(localpath, item), ftp)
 
     for item in delete_list:
         ftp_delete(item, ftp)
