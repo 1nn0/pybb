@@ -274,7 +274,7 @@ def ftp_delete(path, ftp):
     try:
         ftp.rmd(path)
     except:
-        logging.error('ftp_delete: не могу удалить {0}: {1}'.format(path))
+        logging.error('ftp_delete: не могу удалить {0}: '.format(path))
 
 
 # Функция для синхронизации локальных каталогов с ФТП-сервером.
